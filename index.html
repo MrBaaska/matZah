@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Төмөр замын материал захиалагч</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } }
+        }
+    </script>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2.5 rounded-lg text-white shadow">
+                    <i class="fa-solid fa-train-subway text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold">Шаардлагатай материалын захиалга</h1>
+                    <p class="text-xs text-slate-400">Шаардах хуудас</p>
+                </div>
+            </div>
+            <button onclick="openNewRequestModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow transition flex items-center gap-2">
+                <i class="fa-solid fa-plus-circle"></i> Шинэ захиалга өгөх
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
+        
+        <!-- Info Banner -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900 mt-1">Замын хэсгийн захиалгууд</h2>
+                <p class="text-sm text-slate-500">Хэсэгт шаардлагатай материалаа захиалж, хяналтын дамжлагын явцыг хянах боломжтой.</p>
+            </div>
+            <button onclick="loadRequests()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium text-slate-700 transition flex items-center gap-2">
+                <i class="fa-solid fa-rotate"></i> Шинэчлэх
+            </button>
+        </div>
+
+        <!-- Requests Table -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800">Илгээсэн захиалгын түүх</h3>
+                <span id="req-count" class="bg-slate-200 text-slate-700 text-xs px-2.5 py-1 rounded-full font-semibold">0</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100/70 text-slate-600 text-xs uppercase border-b border-slate-200">
+                            <th class="p-4">Огноо</th>
+                            <th class="p-4">Замын хэсэг</th>
+                            <th class="p-4">Материал, хэмжээ</th>
+                            <th class="p-4">Агуулахын төлөв</th>
+                            <th class="p-4">Явцын шат</th>
+                            <th class="p-4">Ерөнхий Төлөв</th>
+                            <th class="p-4 text-right">Үйлдэл</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: New Request -->
+    <div id="modal-new" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
+            <div class="p-5 bg-slate-900 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-file-circle-plus text-blue-400 mr-2"></i> Шинэ Захиалга Үүсгэх</h3>
+                <button onclick="closeModal('modal-new')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleCreate(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Захиалагч хэсэг / анги*</label>
+                    <select id="f-section" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500"></select>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Материалын нэр*</label>
+                        <input type="text" id="f-item" required placeholder="Жишээ: Рельс, Модон дэр мод..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Тоо хэмжээ & нэгж*</label>
+                        <input type="text" id="f-qty" required placeholder="Жишээ: 20 ширхэг" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Зориулалт / Тайлбар</label>
+                    <textarea id="f-notes" rows="3" placeholder="Шаардлагатай тайлбар..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm"></textarea>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('modal-new')" class="px-5 py-2.5 rounded-xl border text-slate-700 text-sm">Цуцлах</button>
+                    <button type="submit" id="btn-submit" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700">Илгээх</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Request details -->
+    <div id="modal-details" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
+            <div class="p-5 bg-slate-900 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-comments text-blue-400 mr-2"></i> Захиалгын явц, тайлбар</h3>
+                <button onclick="closeModal('modal-details')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="details-body" class="p-6 space-y-4"></div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        const SUPABASE_URL = 'https://sdyfhchfgdiuttgvecfw.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_nBLyuMhGRJ676a-3wreCgw_FuKAPuz7';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const railwaySections = [
+            "ПД-1", "ПД-2", "ПД-3", "ПД-4", "ПД-5", "ПД-6", "ПД-7", "ПД-8", "ПД-9","ПД-10","ПД-11","ПД-12","ПД-13","ПД-14","ПД-15","ПД-16","ПД-17","ПД-18","ПД-19","ПД-20","ПД-21"
+        ];
+
+        window.onload = () => {
+            const sel = document.getElementById('f-section');
+            railwaySections.forEach(s => {
+                let opt = document.createElement('option');
+                opt.value = s; opt.textContent = s;
+                sel.appendChild(opt);
+            });
+            loadRequests();
+        };
+
+        async function loadRequests() {
+            const { data, error } = await supabaseClient.from('railway_requests').select('*').order('created_at', { ascending: false });
+            if(error) { showToast("Өгөгдөл татахад алдаа гарлаа", "error"); return; }
+            
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = "";
+            document.getElementById('req-count').textContent = data.length;
+
+            data.forEach(r => {
+                let stepNames = ["1. Илгээсэн", "2. М.Нягтлан", "3. Эдийн засагч", "4. Е.Нягтлан", "5. Баталгаажсан"];
+                let tr = document.createElement('tr');
+                const isRejected = String(r.status || '').startsWith('Татгалзсан');
+                tr.className = isRejected
+                    ? "bg-rose-50 hover:bg-rose-100 border-l-4 border-rose-500"
+                    : "hover:bg-slate-50";
+                const stockStatus = r.material_data?.stockStatus || 'Шалгагдаагүй';
+                tr.innerHTML = `
+                    <td class="p-4 font-semibold">${r.id}<br><span class="text-xs text-slate-400">${new Date(r.created_at).toLocaleString()}</span></td>
+                    <td class="p-4">${r.section}</td>
+                    <td class="p-4 font-medium">${r.item_name}<br><span class="text-xs text-slate-500">Тоо: ${r.quantity_needed}</span>${r.notes ? `<br><span class="text-xs text-slate-500 whitespace-pre-wrap">Зориулалт / Тайлбар: ${escapeHtml(r.notes)}</span>` : ''}</td>
+                    <td class="p-4"><span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${stockStatusClasses(stockStatus)}">${escapeHtml(stockStatus)}</span></td>
+                    <td class="p-4"><span class="text-xs font-semibold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full">${stepNames[r.current_step - 1] || 'Дууссан'}</span></td>
+                    <td class="p-4"><span class="text-xs font-medium px-2.5 py-1 rounded border">${escapeHtml(r.status)}</span></td>
+                    <td class="p-4 text-right"><button type="button" class="request-details-btn px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium">Харах</button></td>
+                `;
+                tr.querySelector('.request-details-btn').addEventListener('click', () => showRequestDetails(r));
+                tbody.appendChild(tr);
+            });
+        }
+
+        function showRequestDetails(request) {
+            const comments = [
+                ['Нярав', request.material_data?.reason],
+                ['Эдийн засагч', request.economist_data?.reason],
+                ['Е.нягтлан', request.chief_data?.reason],
+                ['Дарга', request.director_data?.reason]
+            ].filter(([, comment]) => typeof comment === 'string' && comment.trim());
+            const commentList = comments.length
+                ? comments.map(([role, comment]) => `
+                    <div class="rounded-xl border border-slate-200 p-4">
+                        <p class="text-sm font-semibold text-slate-800">${role}</p>
+                        <p class="mt-1 text-sm text-slate-600 whitespace-pre-wrap">${escapeHtml(comment.trim())}</p>
+                    </div>
+                `).join('')
+                : '<p class="text-sm text-slate-500">Одоогоор тайлбар, шалтгаан бичээгүй байна.</p>';
+
+            document.getElementById('details-body').innerHTML = `
+                <div class="text-sm text-slate-600">
+                    <p><span class="font-semibold text-slate-800">Захиалга:</span> ${escapeHtml(request.item_name)} (${escapeHtml(request.quantity_needed)})</p>
+                    <p class="mt-1"><span class="font-semibold text-slate-800">Төлөв:</span> ${escapeHtml(request.status)}</p>
+                </div>
+                <div class="space-y-3">${commentList}</div>
+                <div class="flex justify-end border-t pt-3">
+                    <button type="button" onclick="closeModal('modal-details')" class="px-4 py-2 border rounded-xl text-sm">Хаах</button>
+                </div>
+            `;
+            document.getElementById('modal-details').classList.remove('hidden');
+        }
+
+        async function handleCreate(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit');
+            btn.disabled = true; btn.textContent = "Илгээж байна...";
+
+            const newRow = {
+                id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
+                section: document.getElementById('f-section').value,
+                item_name: document.getElementById('f-item').value,
+                quantity_needed: document.getElementById('f-qty').value,
+                notes: document.getElementById('f-notes').value,
+                current_step: 1,
+                status: "Шинэ",
+                material_data: {}, economist_data: {}, chief_data: {}, director_data: {},
+                history: [{ step: "Захиалагч", action: "Шинэ захиалга илгээлээ", date: new Date().toISOString(), user: "Хэсэг" }]
+            };
+
+            const { error } = await supabaseClient.from('railway_requests').insert([newRow]);
+            btn.disabled = false; btn.textContent = "Илгээх";
+
+            if(error) { showToast("Алдаа гарлаа: " + error.message, "error"); }
+            else {
+                closeModal('modal-new');
+                document.getElementById('f-item').value = '';
+                document.getElementById('f-qty').value = '';
+                document.getElementById('f-notes').value = '';
+                showToast("Захиалга амжилттай үүслээ!");
+                loadRequests();
+            }
+        }
+
+        function openNewRequestModal() { document.getElementById('modal-new').classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function stockStatusClasses(status) {
+            if (status === 'Байгаа') return 'bg-green-100 text-green-800';
+            if (status === 'Захиалсан') return 'bg-yellow-100 text-yellow-800';
+            if (['Дууссан', 'Байхгүй', 'Дууссан / Байхгүй'].includes(status)) return 'bg-red-100 text-red-800';
+            return 'bg-slate-100 text-slate-600';
+        }
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[char]);
+        }
+        function showToast(msg, type='success') {
+            const box = document.getElementById('toast-container');
+            let t = document.createElement('div');
+            t.className = `px-4 py-3 rounded-xl shadow-lg text-white text-sm ${type==='success'?'bg-emerald-600':'bg-rose-600'}`;
+            t.textContent = msg; box.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
