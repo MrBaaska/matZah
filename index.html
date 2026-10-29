@@ -122,8 +122,8 @@
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
     <script>
-        const SUPABASE_URL = 'https://sdyfhchfgdiuttgvecfw.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_nBLyuMhGRJ676a-3wreCgw_FuKAPuz7';
+        const SUPABASE_URL = 'https://wjpvxyoqriomxdsliaxq.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_3neFX7Gm0DNyEURdW0pM0w_I6LSi04T';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const railwaySections = [
@@ -204,29 +204,40 @@
             const btn = document.getElementById('btn-submit');
             btn.disabled = true; btn.textContent = "Илгээж байна...";
 
+            const requestId = globalThis.crypto?.randomUUID
+                ? globalThis.crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
             const newRow = {
-                id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
+                id: `REQ-${requestId}`,
                 section: document.getElementById('f-section').value,
-                item_name: document.getElementById('f-item').value,
-                quantity_needed: document.getElementById('f-qty').value,
-                notes: document.getElementById('f-notes').value,
+                item_name: document.getElementById('f-item').value.trim(),
+                quantity_needed: document.getElementById('f-qty').value.trim(),
+                notes: document.getElementById('f-notes').value.trim(),
                 current_step: 1,
                 status: "Шинэ",
                 material_data: {}, economist_data: {}, chief_data: {}, director_data: {},
                 history: [{ step: "Захиалагч", action: "Шинэ захиалга илгээлээ", date: new Date().toISOString(), user: "Хэсэг" }]
             };
 
-            const { error } = await supabaseClient.from('railway_requests').insert([newRow]);
-            btn.disabled = false; btn.textContent = "Илгээх";
-
-            if(error) { showToast("Алдаа гарлаа: " + error.message, "error"); }
-            else {
+            try {
+                const { error } = await supabaseClient.from('railway_requests').insert([newRow]);
+                if (error) {
+                    showToast("Илгээхэд алдаа гарлаа: " + error.message, "error");
+                    return;
+                }
                 closeModal('modal-new');
+                document.querySelector('#modal-new form').reset();
                 document.getElementById('f-item').value = '';
                 document.getElementById('f-qty').value = '';
                 document.getElementById('f-notes').value = '';
                 showToast("Захиалга амжилттай үүслээ!");
                 loadRequests();
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                showToast("Илгээхэд алдаа гарлаа: " + message, "error");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Илгээх";
             }
         }
 
